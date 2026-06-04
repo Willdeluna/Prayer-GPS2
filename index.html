@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#07060f">
+<title>Prayer GPS</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,400&family=Spectral:ital,wght@0,300;0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#07060f;
+  --bg2:#100b22;
+  --ink:#f4efe6;
+  --muted:#8d86ad;
+  --gold:#e8b65a;
+  --gold-soft:#f0c674;
+  --ember:#d98a4f;
+  --violet:#6b4fa0;
+  --line:rgba(232,182,90,.18);
+  --card:rgba(22,17,42,.62);
+  --good:#7fd6a2;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  font-family:"Spectral",serif;
+  color:var(--ink);
+  background:radial-gradient(120% 90% at 50% -10%, #1b133a 0%, var(--bg2) 38%, var(--bg) 78%);
+  background-attachment:fixed;
+  overflow-x:hidden;
+  min-height:100vh;
+}
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+.wrap{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:22px 18px 110px}
+
+header{text-align:center;padding:14px 0 8px;animation:rise .8s ease both}
+.brand{
+  font-family:"Fraunces",serif;
+  letter-spacing:.42em;
+  font-weight:500;
+  font-size:1.35rem;
+  text-transform:uppercase;
+  color:var(--gold);
+  text-shadow:0 0 22px rgba(232,182,90,.35);
+  margin:0 0 0 .42em;
+}
+.tag{font-style:italic;color:var(--muted);font-size:.95rem;margin-top:6px;letter-spacing:.02em}
+
+/* tabs */
+.tabs{display:flex;gap:6px;justify-content:center;margin:20px 0 24px;animation:rise .8s .05s ease both}
+.tab{
+  flex:1;max-width:140px;text-align:center;cursor:pointer;
+  font-family:"Fraunces",serif;font-size:.82rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--muted);padding:10px 6px;border:1px solid transparent;border-radius:999px;
+  transition:.35s;
+}
+.tab.active{color:var(--bg);background:linear-gradient(180deg,var(--gold-soft),var(--gold));box-shadow:0 0 24px rgba(232,182,90,.4)}
+
+.panel{display:none;animation:fade .5s ease both}
+.panel.active{display:block}
+
+/* compass */
+.compass-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin:6px 0 18px}
+.compass{width:230px;height:230px;position:relative;filter:drop-shadow(0 0 30px rgba(107,79,160,.45))}
+.heading-read{font-family:"Space Mono",monospace;font-size:1.5rem;color:var(--gold);letter-spacing:.04em}
+.heading-read .deg{color:var(--muted);font-size:1rem}
+.sensor-hint{font-size:.78rem;color:var(--muted);font-style:italic;text-align:center;max-width:280px}
+
+.readout{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 18px;
+}
+.cell{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  backdrop-filter:blur(6px);
+}
+.cell .k{font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.cell .v{font-family:"Space Mono",monospace;font-size:.95rem;color:var(--ink);margin-top:4px;word-break:break-word}
+
+textarea{
+  width:100%;min-height:96px;resize:vertical;background:var(--card);color:var(--ink);
+  border:1px solid var(--line);border-radius:16px;padding:16px;font-family:"Spectral",serif;
+  font-size:1.12rem;line-height:1.55;outline:none;backdrop-filter:blur(6px);
+}
+textarea::placeholder{color:var(--muted);font-style:italic}
+textarea:focus{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+
+.row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+button{font-family:"Fraunces",serif;cursor:pointer;border:none;transition:.25s}
+.btn{
+  flex:1;min-width:130px;padding:13px 16px;border-radius:14px;font-size:.86rem;letter-spacing:.12em;
+  text-transform:uppercase;background:var(--card);color:var(--ink);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;gap:8px;backdrop-filter:blur(6px);
+}
+.btn:active{transform:scale(.97)}
+.btn.on{background:linear-gradient(180deg,var(--ember),#b3673a);color:#fff;border-color:transparent;animation:pulse 1.4s infinite}
+.btn.ghost{background:transparent}
+.save{
+  width:100%;margin-top:18px;padding:18px;border-radius:16px;font-size:1rem;letter-spacing:.2em;text-transform:uppercase;
+  background:linear-gradient(180deg,var(--gold-soft),var(--gold));color:#19130a;font-weight:600;
+  box-shadow:0 8px 34px rgba(232,182,90,.35);
+}
+.save:active{transform:scale(.985)}
+audio{width:100%;margin-top:12px;filter:sepia(.3) hue-rotate(-10deg)}
+
+/* saved list */
+.reminder{
+  text-align:center;font-style:italic;color:var(--gold-soft);font-size:1.02rem;line-height:1.5;
+  border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:20px;background:var(--card);
+  backdrop-filter:blur(6px);
+}
+.empty{text-align:center;color:var(--muted);font-style:italic;padding:48px 10px}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px;
+  backdrop-filter:blur(8px);animation:rise .5s ease both;position:relative;overflow:hidden;
+}
+.card.received{border-color:rgba(127,214,162,.4)}
+.card.received::after{content:"✦ received";position:absolute;top:12px;right:14px;color:var(--good);font-family:"Space Mono",monospace;font-size:.66rem;letter-spacing:.12em}
+.card .when{font-family:"Space Mono",monospace;font-size:.72rem;color:var(--muted);letter-spacing:.06em}
+.card .ago{color:var(--gold);font-style:italic;font-family:"Spectral",serif}
+.card .wish{font-size:1.2rem;line-height:1.5;margin:10px 0 14px;color:var(--ink)}
+.card .meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-family:"Space Mono",monospace;font-size:.74rem;color:var(--muted)}
+.dirbadge{display:flex;align-items:center;gap:7px;color:var(--gold)}
+.dirbadge svg{width:26px;height:26px}
+.card .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.mini{flex:1;min-width:90px;padding:9px;border-radius:10px;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--line)}
+.mini.gold{color:var(--gold);border-color:var(--gold)}
+.mini.del{color:#c97; }
+
+.toolbar{display:flex;gap:8px;margin-bottom:18px}
+.toolbar .mini{flex:1}
+
+/* map */
+#map{height:62vh;min-height:380px;border-radius:18px;border:1px solid var(--line);overflow:hidden;background:#0c0a18}
+.leaflet-popup-content-wrapper{background:#140f28;color:var(--ink);border:1px solid var(--line);border-radius:14px;font-family:"Spectral",serif}
+.leaflet-popup-tip{background:#140f28}
+.leaflet-popup-content{margin:14px 16px}
+.popwish{font-size:1.05rem;line-height:1.4;margin-bottom:8px}
+.popmeta{font-family:"Space Mono",monospace;font-size:.7rem;color:var(--muted)}
+.facing-arrow{display:flex;align-items:center;justify-content:center}
+.facing-arrow svg{transition:transform .3s}
+
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);z-index:50;
+  background:linear-gradient(180deg,var(--gold-soft),var(--gold));color:#19130a;font-family:"Fraunces",serif;
+  padding:12px 22px;border-radius:999px;letter-spacing:.08em;opacity:0;pointer-events:none;transition:.4s;
+  box-shadow:0 8px 30px rgba(232,182,90,.4);font-size:.9rem;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(217,138,79,.5)}50%{box-shadow:0 0 0 12px rgba(217,138,79,0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite;display:inline-block}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="wrap">
+  <header>
+    <h1 class="brand">Prayer&nbsp;GPS</h1>
+    <div class="tag">Speak it. Mark the moment. Be ready to receive.</div>
+  </header>
+
+  <nav class="tabs">
+    <div class="tab active" data-tab="speak">Speak</div>
+    <div class="tab" data-tab="saved">Saved</div>
+    <div class="tab" data-tab="map">Map</div>
+  </nav>
+
+  <!-- SPEAK -->
+  <section class="panel active" id="speak">
+    <div class="compass-wrap">
+      <div class="compass" id="compass" title="Tap a point to set direction manually"></div>
+      <div class="heading-read"><span id="hdgCard">—</span> <span class="deg" id="hdgDeg"></span></div>
+      <div class="sensor-hint" id="sensorHint">Tap “Align” to use your phone’s compass &amp; location.</div>
+      <div id="skyNow" style="margin-top:8px;font-style:italic;color:var(--gold-soft);font-size:.95rem;min-height:1.25em;text-align:center;max-width:300px"></div>
+      <div id="skyThumb" style="margin-top:10px;cursor:pointer" title="Tap to enlarge"></div>
+    </div>
+
+    <div class="readout">
+      <div class="cell"><div class="k">Latitude</div><div class="v" id="lat">—</div></div>
+      <div class="cell"><div class="k">Longitude</div><div class="v" id="lng">—</div></div>
+      <div class="cell"><div class="k">Accuracy</div><div class="v" id="acc">—</div></div>
+      <div class="cell"><div class="k">Facing</div><div class="v" id="faceCell">—</div></div>
+    </div>
+
+    <div class="row" style="margin-bottom:14px">
+      <button class="btn" id="alignBtn">◎ Align sensors</button>
+      <button class="btn ghost" id="micBtn">🎙 Speak wish</button>
+      <button class="btn ghost" id="recBtn">● Record audio</button>
+    </div>
+
+    <textarea id="wishText" placeholder="Speak or type your desire into existence…"></textarea>
+    <audio id="audioPlay" controls style="display:none"></audio>
+
+    <button class="save" id="saveBtn">✦ Pin this wish</button>
+  </section>
+
+  <!-- SAVED -->
+  <section class="panel" id="saved">
+    <div class="reminder">“What you asked for is already on its way.<br>Stay ready to receive it.”</div>
+    <div class="toolbar">
+      <button class="mini" id="exportBtn">⤓ Backup</button>
+      <button class="mini" id="importBtn">⤒ Restore</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <!-- MAP -->
+  <section class="panel" id="map-panel">
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn" id="locateBtn">⌖ Find me</button>
+      <button class="btn ghost" id="fitBtn">⤢ Show all pins</button>
+    </div>
+    <div id="map"></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<div id="skyModal" style="display:none;position:fixed;inset:0;z-index:80;background:rgba(4,3,12,.93);backdrop-filter:blur(7px);align-items:center;justify-content:center;flex-direction:column;padding:18px;overflow:auto">
+  <div id="skyModalBody" style="text-align:center;max-width:560px;width:100%"></div>
+  <button id="skyModalClose" class="btn ghost" style="margin-top:16px">Close</button>
+</div>
+
+<script>
+/* ---------- storage (localStorage with in-memory fallback) ---------- */
+const KEY='prayergps.wishes.v1';
+const mem={d:null};
+const Store={
+  read(){
+    try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):(mem.d||[])}
+    catch(e){return mem.d||[]}
+  },
+  write(arr){
+    mem.d=arr;
+    try{localStorage.setItem(KEY,JSON.stringify(arr))}catch(e){}
+  }
+};
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const toast=(m)=>{const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200)};
+const CARD16=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const cardinal=d=>CARD16[Math.round(((d%360)+360)%360/22.5)%16];
+function relTime(ts){
+  const s=(Date.now()-ts)/1000;
+  if(s<60)return'just now';
+  const m=s/60; if(m<60)return Math.round(m)+(Math.round(m)===1?' minute ago':' minutes ago');
+  const h=m/60; if(h<24)return Math.round(h)+(Math.round(h)===1?' hour ago':' hours ago');
+  const dd=h/24; if(dd<30)return Math.round(dd)+(Math.round(dd)===1?' day ago':' days ago');
+  const mo=dd/30; if(mo<12)return Math.round(mo)+(Math.round(mo)===1?' month ago':' months ago');
+  return Math.round(dd/365)+' year(s) ago';
+}
+function fmtDate(ts){return new Date(ts).toLocaleString([], {weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}
+
+/* ---------- live capture state ---------- */
+let state={heading:null, lat:null, lng:null, acc:null, manualHeading:false};
+
+/* ---------- starfield ---------- */
+(function(){
+  const c=$('#stars'),x=c.getContext('2d');let st=[];
+  function size(){c.width=innerWidth;c.height=innerHeight;st=[];const n=Math.min(160,Math.floor(innerWidth*innerHeight/9000));
+    for(let i=0;i<n;i++)st.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.3+.2,p:Math.random()*Math.PI*2,s:Math.random()*.018+.004})}
+  function loop(){x.clearRect(0,0,c.width,c.height);for(const s of st){s.p+=s.s;const a=.35+Math.sin(s.p)*.35;
+    x.beginPath();x.arc(s.x,s.y,s.r,0,7);x.fillStyle='rgba(240,235,255,'+a+')';x.fill();}
+    requestAnimationFrame(loop)}
+  addEventListener('resize',size);size();loop();
+})();
+
+/* ---------- compass SVG ---------- */
+const compassEl=$('#compass');
+function buildCompass(){
+  const ticks=[];
+  for(let i=0;i<72;i++){const big=i%18===0,med=i%9===0;const a=i*5*Math.PI/180;
+    const r1=big?80:med?85:88,r2=92;
+    const x1=110+Math.sin(a)*r1,y1=110-Math.cos(a)*r1,x2=110+Math.sin(a)*r2,y2=110-Math.cos(a)*r2;
+    ticks.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${big?'#e8b65a':'rgba(141,134,173,.45)'}" stroke-width="${big?2:1}"/>`)}
+  const labels=[['N',110,28],['E',196,114],['S',110,200],['W',24,114]];
+  const labelSvg=labels.map(([t,x,y])=>`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" fill="${t==='N'?'#e8b65a':'#8d86ad'}" font-family="Fraunces,serif" font-size="${t==='N'?20:16}" letter-spacing="1">${t}</text>`).join('');
+  compassEl.innerHTML=`
+  <svg viewBox="0 0 220 220" width="100%" height="100%">
+    <defs>
+      <radialGradient id="g" cx="50%" cy="42%" r="60%">
+        <stop offset="0%" stop-color="#241a48"/><stop offset="100%" stop-color="#0c0920"/>
+      </radialGradient>
+      <linearGradient id="needle" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#f6d488"/><stop offset="100%" stop-color="#d98a4f"/>
+      </linearGradient>
+    </defs>
+    <circle cx="110" cy="110" r="100" fill="url(#g)" stroke="rgba(232,182,90,.35)" stroke-width="1.5"/>
+    <circle cx="110" cy="110" r="70" fill="none" stroke="rgba(107,79,160,.4)" stroke-width="1"/>
+    ${ticks.join('')}
+    ${labelSvg}
+    <g id="needleG" style="transform-origin:110px 110px;transition:transform .25s ease-out">
+      <polygon points="110,38 119,114 110,104 101,114" fill="url(#needle)"/>
+      <polygon points="110,182 101,114 110,124 119,114" fill="rgba(141,134,173,.55)"/>
+    </g>
+    <circle cx="110" cy="110" r="7" fill="#0c0920" stroke="#e8b65a" stroke-width="2"/>
+  </svg>`;
+}
+buildCompass();
+const needleG=()=>compassEl.querySelector('#needleG');
+/* ---------- celestial engine: which part of the sky you faced ---------- */
+const SKY=(function(){
+  const rad=Math.PI/180;
+  const sind=x=>Math.sin(x*rad),cosd=x=>Math.cos(x*rad),tand=x=>Math.tan(x*rad);
+  const asind=x=>Math.asin(Math.max(-1,Math.min(1,x)))/rad, atan2d=(y,x)=>Math.atan2(y,x)/rad;
+  const rev=x=>((x%360)+360)%360;
+  // bright-star catalog: [name, RA°, Dec°, mag, constellation]
+  const STARS=[
+    ["Sirius",101.287,-16.716,-1.46,"Canis Major"],["Canopus",95.988,-52.696,-0.74,"Carina"],
+    ["Arcturus",213.915,19.182,-0.05,"Boötes"],["Vega",279.234,38.784,0.03,"Lyra"],
+    ["Capella",79.172,45.998,0.08,"Auriga"],["Rigel",78.634,-8.202,0.13,"Orion"],
+    ["Procyon",114.825,5.225,0.34,"Canis Minor"],["Betelgeuse",88.793,7.407,0.50,"Orion"],
+    ["Achernar",24.429,-57.237,0.46,"Eridanus"],["Hadar",210.956,-60.373,0.61,"Centaurus"],
+    ["Altair",297.696,8.868,0.76,"Aquila"],["Acrux",186.650,-63.099,0.77,"Crux"],
+    ["Aldebaran",68.980,16.509,0.85,"Taurus"],["Antares",247.352,-26.432,0.96,"Scorpius"],
+    ["Spica",201.298,-11.161,0.97,"Virgo"],["Pollux",116.329,28.026,1.14,"Gemini"],
+    ["Fomalhaut",344.413,-29.622,1.16,"Piscis Austrinus"],["Deneb",310.358,45.280,1.25,"Cygnus"],
+    ["Regulus",152.093,11.967,1.35,"Leo"],["Adhara",104.656,-28.972,1.50,"Canis Major"],
+    ["Castor",113.650,31.888,1.57,"Gemini"],["Gacrux",187.791,-57.113,1.63,"Crux"],
+    ["Shaula",263.402,-37.104,1.62,"Scorpius"],["Bellatrix",81.283,6.350,1.64,"Orion"],
+    ["Elnath",81.573,28.608,1.65,"Taurus"],["Alnilam",84.053,-1.202,1.69,"Orion"],
+    ["Alnitak",85.190,-1.943,1.77,"Orion"],["Alioth",193.507,55.960,1.76,"Ursa Major"],
+    ["Dubhe",165.932,61.751,1.79,"Ursa Major"],["Mirfak",51.081,49.861,1.79,"Perseus"],
+    ["Wezen",107.098,-26.393,1.83,"Canis Major"],["Kaus Australis",276.043,-34.385,1.85,"Sagittarius"],
+    ["Alkaid",206.885,49.313,1.85,"Ursa Major"],["Sargas",264.330,-42.998,1.86,"Scorpius"],
+    ["Avior",125.628,-59.509,1.86,"Carina"],["Menkalinan",89.882,44.947,1.90,"Auriga"],
+    ["Atria",252.166,-69.028,1.91,"Triangulum Australe"],["Alhena",99.428,16.399,1.92,"Gemini"],
+    ["Peacock",306.412,-56.735,1.94,"Pavo"],["Polaris",37.954,89.264,1.98,"Ursa Minor"],
+    ["Mirzam",95.675,-17.956,1.98,"Canis Major"],["Alphard",141.897,-8.659,1.98,"Hydra"],
+    ["Hamal",31.793,23.462,2.00,"Aries"],["Algieba",154.993,19.842,2.01,"Leo"],
+    ["Diphda",10.897,-17.987,2.04,"Cetus"],["Nunki",283.816,-26.297,2.05,"Sagittarius"],
+    ["Menkent",211.671,-36.370,2.06,"Centaurus"],["Alpheratz",2.097,29.090,2.06,"Andromeda"],
+    ["Mirach",17.433,35.621,2.07,"Andromeda"],["Saiph",86.939,-9.670,2.07,"Orion"],
+    ["Kochab",222.676,74.156,2.07,"Ursa Minor"],["Rasalhague",263.734,12.560,2.08,"Ophiuchus"],
+    ["Denebola",177.265,14.572,2.11,"Leo"],["Algol",47.042,40.956,2.12,"Perseus"],
+    ["Mintaka",83.002,-0.299,2.23,"Orion"],["Sadr",305.557,40.257,2.23,"Cygnus"],
+    ["Schedar",10.127,56.537,2.24,"Cassiopeia"],["Eltanin",269.152,51.489,2.23,"Draco"],
+    ["Mizar",200.981,54.925,2.23,"Ursa Major"],["Caph",2.294,59.150,2.28,"Cassiopeia"],
+    ["Zubenelgenubi",222.720,-16.042,2.75,"Libra"],["Markab",346.190,15.205,2.49,"Pegasus"],
+    ["Enif",326.046,9.875,2.39,"Pegasus"],["Scheat",345.944,28.083,2.44,"Pegasus"],
+    ["Menkar",45.570,4.090,2.53,"Cetus"],["Sadalsuud",322.890,-5.571,2.90,"Aquarius"],
+    ["Deneb Algedi",326.760,-16.127,2.85,"Capricornus"],["Al Tarf",124.129,9.186,3.50,"Cancer"],
+    ["Alpherg",22.871,15.346,3.60,"Pisces"],["Vindemiatrix",195.544,10.959,2.83,"Virgo"],
+    ["Alphecca",233.672,26.715,2.22,"Corona Borealis"],["Suhail",136.999,-43.432,2.23,"Vela"]
+  ];
+  function julian(ms){return ms/86400000+2440587.5;}
+  function obl(d){return 23.4393-3.563e-7*d;}
+  function kepler(M,e){let E=M+e*(180/Math.PI)*sind(M)*(1+e*cosd(M));for(let k=0;k<6;k++){E=E-(E-e*(180/Math.PI)*sind(E)-M)/(1-e*cosd(E));}return E;}
+  function sun(d){
+    const w=282.9404+4.70935e-5*d, e=0.016709-1.151e-9*d, M=rev(356.0470+0.9856002585*d);
+    const Ls=rev(w+M), oblecl=obl(d), E=kepler(M,e);
+    const xv=cosd(E)-e, yv=Math.sqrt(1-e*e)*sind(E), v=atan2d(yv,xv), r=Math.sqrt(xv*xv+yv*yv), lon=rev(v+w);
+    const xs=r*cosd(lon), ys=r*sind(lon);
+    const xe=xs, ye=ys*cosd(oblecl), ze=ys*sind(oblecl);
+    return {RA:rev(atan2d(ye,xe)),Dec:atan2d(ze,Math.sqrt(xe*xe+ye*ye)),Ls,M,xs,ys,oblecl};
+  }
+  function planet(el,d,S){
+    const N=el.N(d),i=el.i(d),w=el.w(d),a=el.a,e=el.e(d),M=rev(el.M(d)),E=kepler(M,e);
+    const xv=a*(cosd(E)-e), yv=a*Math.sqrt(1-e*e)*sind(E), v=atan2d(yv,xv), r=Math.sqrt(xv*xv+yv*yv);
+    const xh=r*(cosd(N)*cosd(v+w)-sind(N)*sind(v+w)*cosd(i));
+    const yh=r*(sind(N)*cosd(v+w)+cosd(N)*sind(v+w)*cosd(i));
+    const zh=r*(sind(v+w)*sind(i));
+    const xg=xh+S.xs, yg=yh+S.ys, zg=zh, o=S.oblecl;
+    const xe=xg, ye=yg*cosd(o)-zg*sind(o), ze=yg*sind(o)+zg*cosd(o);
+    return {RA:rev(atan2d(ye,xe)),Dec:atan2d(ze,Math.sqrt(xe*xe+ye*ye))};
+  }
+  function moon(d,S){
+    const N=rev(125.1228-0.0529538083*d),i=5.1454,w=rev(318.0634+0.1643573223*d),a=60.2666,e=0.0549,M=rev(115.3654+13.0649929509*d);
+    const E=kepler(M,e), xv=a*(cosd(E)-e), yv=a*Math.sqrt(1-e*e)*sind(E), v=atan2d(yv,xv), r=Math.sqrt(xv*xv+yv*yv);
+    const xh=r*(cosd(N)*cosd(v+w)-sind(N)*sind(v+w)*cosd(i));
+    const yh=r*(sind(N)*cosd(v+w)+cosd(N)*sind(v+w)*cosd(i));
+    const zh=r*(sind(v+w)*sind(i));
+    let lon=rev(atan2d(yh,xh)), lat=atan2d(zh,Math.sqrt(xh*xh+yh*yh));
+    const Lm=rev(N+w+M), Ms=S.M, D=rev(Lm-S.Ls), F=rev(Lm-N), Mm=M;
+    lon+=-1.274*sind(Mm-2*D)+0.658*sind(2*D)-0.186*sind(Ms)-0.059*sind(2*Mm-2*D)
+        -0.057*sind(Mm-2*D+Ms)+0.053*sind(Mm+2*D)+0.046*sind(2*D-Ms)+0.041*sind(Mm-Ms)
+        -0.035*sind(D)-0.031*sind(Mm+Ms)-0.015*sind(2*F-2*D)+0.011*sind(Mm-4*D);
+    lat+=-0.173*sind(F-2*D)-0.055*sind(Mm-F-2*D)-0.046*sind(Mm+F-2*D)+0.033*sind(F+2*D)+0.017*sind(2*Mm+F);
+    const o=S.oblecl, xg=cosd(lon)*cosd(lat), yg=sind(lon)*cosd(lat), zg=sind(lat);
+    const xe=xg, ye=yg*cosd(o)-zg*sind(o), ze=yg*sind(o)+zg*cosd(o);
+    return {RA:rev(atan2d(ye,xe)),Dec:atan2d(ze,Math.sqrt(xe*xe+ye*ye))};
+  }
+  const PL={
+    Mercury:{a:0.387098,N:d=>48.3313+3.24587e-5*d,i:d=>7.0047+5e-8*d,w:d=>29.1241+1.01444e-5*d,e:d=>0.205635+5.59e-10*d,M:d=>168.6562+4.0923344368*d},
+    Venus:{a:0.723330,N:d=>76.6799+2.46590e-5*d,i:d=>3.3946+2.75e-8*d,w:d=>54.8910+1.38374e-5*d,e:d=>0.006773-1.302e-9*d,M:d=>48.0052+1.6021302244*d},
+    Mars:{a:1.523688,N:d=>49.5574+2.11081e-5*d,i:d=>1.8497-1.78e-8*d,w:d=>286.5016+2.92961e-5*d,e:d=>0.093405+2.516e-9*d,M:d=>18.6021+0.5240207766*d},
+    Jupiter:{a:5.20256,N:d=>100.4542+2.76854e-5*d,i:d=>1.3030-1.557e-7*d,w:d=>273.8777+1.64505e-5*d,e:d=>0.048498+4.469e-9*d,M:d=>19.8950+0.0830853001*d},
+    Saturn:{a:9.55475,N:d=>113.6634+2.38980e-5*d,i:d=>2.4886-1.081e-7*d,w:d=>339.3939+2.97661e-5*d,e:d=>0.055546-9.499e-9*d,M:d=>316.9670+0.0334442282*d}
+  };
+  function eqToAltAz(RA,Dec,LST,lat){
+    const HA=rev(LST-RA);
+    const alt=asind(sind(lat)*sind(Dec)+cosd(lat)*cosd(Dec)*cosd(HA));
+    const A=atan2d(sind(HA),cosd(HA)*sind(lat)-tand(Dec)*cosd(lat));
+    return {alt,az:rev(A+180)};
+  }
+  function altAzToEq(az,alt,LST,lat){
+    const Dec=asind(sind(lat)*sind(alt)+cosd(lat)*cosd(alt)*cosd(az));
+    const sH=-sind(az)*cosd(alt)/cosd(Dec), cH=(sind(alt)-sind(lat)*sind(Dec))/(cosd(lat)*cosd(Dec));
+    const HA=atan2d(sH,cH); return {RA:rev(LST-HA),Dec};
+  }
+  function constellationAt(RA,Dec){
+    let best=STARS[0],bd=-2;
+    const x=cosd(Dec)*cosd(RA),y=cosd(Dec)*sind(RA),z=sind(Dec);
+    for(const s of STARS){const dot=x*cosd(s[2])*cosd(s[1])+y*cosd(s[2])*sind(s[1])+z*sind(s[2]);if(dot>bd){bd=dot;best=s;}}
+    return best[4];
+  }
+  const DIRW=['north','northeast','east','southeast','south','southwest','west','northwest'];
+  const dirWord=deg=>DIRW[Math.round(rev(deg)/45)%8];
+  function skyFor(lat,lng,ts,heading){
+    if(lat==null||lng==null||heading==null)return null;
+    const date=new Date(ts), d=julian(ts)-2451543.5;
+    const UT=date.getUTCHours()+date.getUTCMinutes()/60+date.getUTCSeconds()/3600;
+    const S=sun(d), LST=rev(S.Ls+180+15*UT+lng);
+    const sunAlt=eqToAltAz(S.RA,S.Dec,LST,lat).alt, day=sunAlt>-0.833;
+    const cand=[{name:'the Sun',RA:S.RA,Dec:S.Dec,prom:100,kind:'sun'},
+                {name:'the Moon',...moon(d,S),prom:96,kind:'moon'}];
+    for(const p of ['Venus','Jupiter','Mars','Saturn','Mercury']){
+      const pos=planet(PL[p],d,S); cand.push({name:p,RA:pos.RA,Dec:pos.Dec,prom:{Venus:92,Jupiter:88,Mars:82,Saturn:74,Mercury:64}[p],kind:'planet'});
+    }
+    for(const s of STARS) cand.push({name:s[0],RA:s[1],Dec:s[2],prom:48-s[3]*6,con:s[4],kind:'star',mag:s[3]});
+    let best=null,bs=-1e9; const points=[];
+    for(const c of cand){
+      const aa=eqToAltAz(c.RA,c.Dec,LST,lat); if(aa.alt<-2)continue;
+      points.push({name:c.name,az:aa.az,alt:aa.alt,kind:c.kind,mag:c.mag,con:c.con});
+      let dAz=Math.abs(rev(aa.az-heading)); if(dAz>180)dAz=360-dAz; if(dAz>18)continue;
+      const score=c.prom-dAz*2.2;
+      if(score>bs){bs=score;best={...c,alt:aa.alt,az:aa.az};}
+    }
+    const dw=dirWord(heading);
+    let label, con;
+    if(best){
+      con=best.con||constellationAt(best.RA,best.Dec);
+      const loc=best.alt<8?`on the ${dw} horizon`:best.alt>60?'high overhead':`${best.alt<30?'low':'midway up'} in the ${dw}`;
+      label=`Facing ${best.name} — ${loc}, in ${con}`;
+      if(day && best.name!=='the Sun') label+=' · daylight';
+    }else{
+      const patch=altAzToEq(heading,25,LST,lat); con=constellationAt(patch.RA,patch.Dec);
+      label=`Facing the stars of ${con}`+(day?' · daylight sky':'');
+    }
+    return {label,con,day,heading:rev(heading),object:best?best.name:null,az:best?best.az:null,alt:best?best.alt:null,points};
+  }
+  return {skyFor};
+})();
+
+/* ---------- all-sky dome thumbnail (zenith center, horizon rim, N up) ---------- */
+function skyThumbSVG(sky,size){
+  size=size||120; const R=size/2-9, cx=size/2, cy=size/2, D=Math.PI/180;
+  const proj=(az,alt)=>{const r=((90-Math.max(0,alt))/90)*R; return [cx+r*Math.sin(az*D), cy-r*Math.cos(az*D)];};
+  const plC={Venus:'#fff1c0',Jupiter:'#ffd9a0',Mars:'#ff7a59',Saturn:'#ffe7b0',Mercury:'#cfd0ea'};
+  const kC={sun:'#ffd76b',moon:'#e9e9f2',star:'#cdd6ff'};
+  const col=p=>p.kind==='planet'?(plC[p.name]||'#ffd9a0'):kC[p.kind];
+  let s=`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex:0 0 auto;border-radius:50%;background:${sky.day?'#16243f':'#0a0a18'};box-shadow:0 0 0 1px var(--line)">`;
+  s+=`<circle cx="${cx}" cy="${cy}" r="${(R*0.66).toFixed(1)}" fill="none" stroke="rgba(141,134,173,.2)" stroke-width=".5"/>`;
+  s+=`<circle cx="${cx}" cy="${cy}" r="${(R*0.33).toFixed(1)}" fill="none" stroke="rgba(141,134,173,.16)" stroke-width=".5"/>`;
+  // facing wedge + line
+  const h=sky.heading||0, sp=15, [wx1,wy1]=proj(h-sp,0), [wx2,wy2]=proj(h+sp,0), [hx,hy]=proj(h,0);
+  s+=`<path d="M${cx},${cy} L${wx1.toFixed(1)},${wy1.toFixed(1)} A${R},${R} 0 0,1 ${wx2.toFixed(1)},${wy2.toFixed(1)} Z" fill="rgba(232,182,90,.15)"/>`;
+  s+=`<line x1="${cx}" y1="${cy}" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="#e8b65a" stroke-width="1.2" opacity=".8"/>`;
+  // bodies (skip the highlighted object; drawn last)
+  (sky.points||[]).forEach(p=>{
+    if(sky.object && p.name===sky.object) return;
+    const [x,y]=proj(p.az,p.alt);
+    const rad=p.kind==='star'?Math.max(0.5,2.3-(p.mag||3)*0.42):(p.kind==='sun'?3.3:p.kind==='moon'?2.9:2.3);
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad.toFixed(1)}" fill="${col(p)}" opacity="${p.kind==='star'?0.85:0.95}"/>`;
+  });
+  if(sky.object){const b=(sky.points||[]).find(p=>p.name===sky.object);
+    if(b){const [x,y]=proj(b.az,b.alt);
+      s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="none" stroke="#e8b65a" stroke-width="1.2"/>`;
+      s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${b.kind==='star'?2.6:3.4}" fill="${col(b)}"/>`;}}
+  // cardinal letters just inside the rim
+  const lbl=(t,az)=>{const r=R-7,lx=cx+r*Math.sin(az*D),ly=cy-r*Math.cos(az*D);
+    return `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="${sky.day?'#aac':'#8d86ad'}" font-size="9" text-anchor="middle" dominant-baseline="central" font-family="Space Mono,monospace">${t}</text>`;};
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(232,182,90,.4)" stroke-width="1"/>`;
+  s+=lbl('N',0)+lbl('E',90)+lbl('S',180)+lbl('W',270)+`</svg>`;
+  return s;
+}
+
+/* ---------- large labeled star chart (full screen) ---------- */
+function skyChartLarge(sky,size){
+  const R=size/2-30, cx=size/2, cy=size/2, D=Math.PI/180, big=size>=360;
+  const proj=(az,alt)=>{const r=((90-Math.max(0,alt))/90)*R;return [cx+r*Math.sin(az*D),cy-r*Math.cos(az*D)];};
+  const plC={Venus:'#fff1c0',Jupiter:'#ffd9a0',Mars:'#ff7a59',Saturn:'#ffe7b0',Mercury:'#cfd0ea'};
+  const kC={sun:'#ffd76b',moon:'#e9e9f2',star:'#cdd6ff'};
+  const col=p=>p.kind==='planet'?(plC[p.name]||'#ffd9a0'):kC[p.kind];
+  const fs=big?12:10;
+  let s=`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="${sky.day?'#16243f':'#08080f'}"/>`;
+  [30,60].forEach(a=>{const rr=((90-a)/90)*R;
+    s+=`<circle cx="${cx}" cy="${cy}" r="${rr.toFixed(1)}" fill="none" stroke="rgba(141,134,173,.22)" stroke-width=".6"/>`;
+    s+=`<text x="${cx+3}" y="${(cy-rr+2).toFixed(1)}" fill="#6b6688" font-size="${fs-2}" font-family="Space Mono,monospace">${a}°</text>`;});
+  // facing wedge + line + label
+  const h=sky.heading||0, sp=14, [wx1,wy1]=proj(h-sp,0),[wx2,wy2]=proj(h+sp,0),[hx,hy]=proj(h,0);
+  s+=`<path d="M${cx},${cy} L${wx1.toFixed(1)},${wy1.toFixed(1)} A${R},${R} 0 0,1 ${wx2.toFixed(1)},${wy2.toFixed(1)} Z" fill="rgba(232,182,90,.14)"/>`;
+  s+=`<line x1="${cx}" y1="${cy}" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="#e8b65a" stroke-width="1.4" opacity=".85"/>`;
+  // bodies
+  (sky.points||[]).forEach(p=>{
+    if(sky.object && p.name===sky.object)return;
+    const [x,y]=proj(p.az,p.alt);
+    const rad=p.kind==='star'?Math.max(0.7,3-(p.mag||3)*0.5):(p.kind==='sun'?5:p.kind==='moon'?4.4:3.4);
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad.toFixed(1)}" fill="${col(p)}" opacity="${p.kind==='star'?0.9:1}"/>`;
+  });
+  // labels for prominent bodies
+  const label=(x,y,t,c,w)=>{const right=x>cx,anchor=right?'end':'start',dx=right?-6:6;
+    return `<text x="${(x+dx).toFixed(1)}" y="${(y+fs*0.35).toFixed(1)}" fill="${c}" font-size="${fs}" text-anchor="${anchor}" font-family="Space Mono,monospace" font-weight="${w||400}">${t}</text>`;};
+  (sky.points||[]).forEach(p=>{
+    const isObj=sky.object&&p.name===p.name&&p.name===sky.object;
+    if(p.kind==='star'&&(p.mag==null||p.mag>1.85)&&!isObj)return;
+    if(isObj)return; // object labelled in highlight pass
+    const [x,y]=proj(p.az,p.alt);
+    s+=label(x,y,p.name,'#aab3d8');
+  });
+  // highlighted object
+  if(sky.object){const b=(sky.points||[]).find(p=>p.name===sky.object);
+    if(b){const [x,y]=proj(b.az,b.alt);
+      s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" fill="none" stroke="#e8b65a" stroke-width="1.4"/>`;
+      s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${b.kind==='star'?3.4:4.4}" fill="${col(b)}"/>`;
+      s+=label(x,y-9,b.name,'#ffe6a3',700);}}
+  // cardinals
+  const card=(t,az)=>{const r=R-11,lx=cx+r*Math.sin(az*D),ly=cy-r*Math.cos(az*D);
+    return `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="${sky.day?'#bcd':'#9aa'}" font-size="${fs+3}" text-anchor="middle" dominant-baseline="central" font-family="Space Mono,monospace">${t}</text>`;};
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(232,182,90,.5)" stroke-width="1.2"/>`;
+  s+=card('N',0)+card('E',90)+card('S',180)+card('W',270)+`</svg>`;
+  return s;
+}
+
+function openSkyChart(w){
+  if(!w||w.lat==null||w.heading==null)return;
+  const sky=SKY.skyFor(w.lat,w.lng,w.ts,w.heading);
+  const size=Math.min(window.innerWidth-44,520);
+  $('#skyModalBody').innerHTML=
+    `<div style="font-family:'Cormorant Garamond',serif;letter-spacing:.28em;color:var(--gold);text-transform:uppercase;font-size:.92rem">The sky you faced</div>
+     <div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:.74rem;margin:4px 0 12px">${fmtDate(w.ts)}</div>
+     ${skyChartLarge(sky,size)}
+     <div style="font-style:italic;color:var(--gold-soft);margin-top:12px;font-size:1.02rem">✦ ${sky.label}</div>
+     ${w.text?`<div style="color:var(--ink);margin-top:8px;font-size:1.08rem;line-height:1.5">“${escapeHtml(w.text)}”</div>`:''}`;
+  $('#skyModal').style.display='flex';
+}
+$('#skyModalClose').onclick=()=>$('#skyModal').style.display='none';
+$('#skyModal').addEventListener('click',e=>{if(e.target.id==='skyModal')$('#skyModal').style.display='none';});
+$('#skyThumb').addEventListener('click',()=>{if(state.lat!=null&&state.heading!=null)openSkyChart({lat:state.lat,lng:state.lng,ts:Date.now(),heading:state.heading,text:$('#wishText').value.trim()});});
+
+function setHeading(deg,manual){
+  state.heading=deg; if(manual)state.manualHeading=true;
+  const g=needleG(); if(g)g.style.transform=`rotate(${deg}deg)`;
+  $('#hdgCard').textContent=cardinal(deg);
+  $('#hdgDeg').textContent=Math.round(((deg%360)+360)%360)+'°';
+  $('#faceCell').textContent=cardinal(deg)+'  ·  '+Math.round(deg)+'°';
+  // live celestial readout
+  const nowT=Date.now();
+  if(state.lat!=null && (!setHeading._t || nowT-setHeading._t>250)){
+    setHeading._t=nowT;
+    const s=SKY.skyFor(state.lat,state.lng,nowT,deg);
+    if(s){$('#skyNow').innerHTML='✦ '+s.label; $('#skyThumb').innerHTML=skyThumbSVG(s,132);}
+  }
+}
+/* tap rose to set heading manually */
+compassEl.addEventListener('click',e=>{
+  const r=compassEl.getBoundingClientRect();
+  const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  let a=Math.atan2(e.clientX-cx,-(e.clientY-cy))*180/Math.PI;
+  if(a<0)a+=360; setHeading(a,true);
+  $('#sensorHint').textContent='Direction set manually. Tap the rose to adjust.';
+});
+
+/* ---------- sensors ---------- */
+function orientationHandler(ev){
+  if(state.manualHeading)return;
+  let h=null;
+  if(typeof ev.webkitCompassHeading==='number') h=ev.webkitCompassHeading;          // iOS
+  else if(ev.absolute && typeof ev.alpha==='number') h=(360-ev.alpha)%360;          // Android absolute
+  else if(typeof ev.alpha==='number') h=(360-ev.alpha)%360;                         // fallback
+  if(h!=null && !isNaN(h)) setHeading(h,false);
+}
+async function enableSensors(){
+  $('#sensorHint').textContent='Requesting location & compass…';
+  // location
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(p=>{
+      state.lat=p.coords.latitude; state.lng=p.coords.longitude; state.acc=p.coords.accuracy;
+      $('#lat').textContent=state.lat.toFixed(6);
+      $('#lng').textContent=state.lng.toFixed(6);
+      $('#acc').textContent='±'+Math.round(state.acc)+' m';
+    },err=>{ $('#lat').textContent='unavailable'; $('#lng').textContent=err.message.slice(0,18); },
+    {enableHighAccuracy:true,timeout:12000,maximumAge:0});
+  }
+  // orientation (iOS needs permission via user gesture)
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+      const perm=await DeviceOrientationEvent.requestPermission();
+      if(perm==='granted'){ window.addEventListener('deviceorientation',orientationHandler,true); $('#sensorHint').textContent='Compass live. Point your phone the way you face.'; }
+      else $('#sensorHint').textContent='Compass denied — tap the rose to set direction manually.';
+    }else if('ondeviceorientationabsolute' in window){
+      window.addEventListener('deviceorientationabsolute',orientationHandler,true);
+      $('#sensorHint').textContent='Compass live. Point your phone the way you face.';
+    }else if(window.DeviceOrientationEvent){
+      window.addEventListener('deviceorientation',orientationHandler,true);
+      $('#sensorHint').textContent='Compass live (approx). Tap the rose to correct.';
+    }else{
+      $('#sensorHint').textContent='No compass on this device — tap the rose to set direction.';
+    }
+  }catch(e){ $('#sensorHint').textContent='Compass unavailable — tap the rose to set direction.'; }
+}
+$('#alignBtn').addEventListener('click',()=>{state.manualHeading=false;enableSensors()});
+
+/* ---------- speech to text ---------- */
+let recog=null,recogOn=false;
+function setupRecog(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return null;
+  const r=new SR(); r.continuous=true; r.interimResults=true; r.lang='en-US';
+  let base='';
+  r.onstart=()=>{base=$('#wishText').value?($('#wishText').value+' '):'';};
+  r.onresult=e=>{let txt='';for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;$('#wishText').value=base+txt;};
+  r.onerror=()=>{stopRecog()};
+  r.onend=()=>{recogOn=false;$('#micBtn').classList.remove('on');$('#micBtn').textContent='🎙 Speak wish';};
+  return r;
+}
+function stopRecog(){if(recog&&recogOn){try{recog.stop()}catch(e){}}}
+$('#micBtn').addEventListener('click',()=>{
+  if(!recog)recog=setupRecog();
+  if(!recog){toast('Voice typing not supported here');return;}
+  if(recogOn){stopRecog();return;}
+  try{recog.start();recogOn=true;$('#micBtn').classList.add('on');$('#micBtn').textContent='● Listening…';}
+  catch(e){}
+});
+
+/* ---------- audio recording ---------- */
+let mediaRec=null,chunks=[],recAudioOn=false,audioData=null;
+$('#recBtn').addEventListener('click',async()=>{
+  if(recAudioOn){ try{mediaRec.stop()}catch(e){} return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRec=new MediaRecorder(stream); chunks=[];
+    mediaRec.ondataavailable=e=>chunks.push(e.data);
+    mediaRec.onstop=()=>{
+      const blob=new Blob(chunks,{type:mediaRec.mimeType||'audio/webm'});
+      const fr=new FileReader();
+      fr.onload=()=>{audioData=fr.result;const a=$('#audioPlay');a.src=audioData;a.style.display='block';};
+      fr.readAsDataURL(blob);
+      stream.getTracks().forEach(t=>t.stop());
+      recAudioOn=false;$('#recBtn').classList.remove('on');$('#recBtn').textContent='● Record audio';
+    };
+    mediaRec.start();recAudioOn=true;$('#recBtn').classList.add('on');$('#recBtn').textContent='■ Stop recording';
+  }catch(e){toast('Microphone unavailable here');}
+});
+
+/* ---------- save ---------- */
+$('#saveBtn').addEventListener('click',()=>{
+  const text=$('#wishText').value.trim();
+  if(!text && !audioData){toast('Speak or type your wish first');return;}
+  stopRecog();
+  const entry={
+    id:Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    ts:Date.now(),
+    text,
+    audio:audioData,
+    lat:state.lat, lng:state.lng, acc:state.acc,
+    heading:state.heading, cardinal:state.heading!=null?cardinal(state.heading):null,
+    received:false
+  };
+  const arr=Store.read(); arr.push(entry); Store.write(arr);
+  // reset
+  $('#wishText').value=''; audioData=null; const a=$('#audioPlay');a.src='';a.style.display='none';
+  renderList();
+  const sky=(entry.lat!=null&&entry.heading!=null)?SKY.skyFor(entry.lat,entry.lng,entry.ts,entry.heading):null;
+  toast(sky?('✦ '+sky.label):'✦ Wish pinned to the stars');
+});
+
+/* ---------- arrow svg ---------- */
+function arrowSvg(deg,size,color){
+  color=color||'#e8b65a';
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform:rotate(${deg||0}deg)"><path d="M12 2 L18 20 L12 15 L6 20 Z" fill="${color}"/></svg>`;
+}
+
+/* ---------- saved list ---------- */
+function renderList(){
+  const arr=Store.read().slice().sort((a,b)=>b.ts-a.ts);
+  const list=$('#list');
+  if(!arr.length){list.innerHTML='<div class="empty">No wishes yet. Speak your first desire into existence.</div>';return;}
+  list.innerHTML=arr.map(w=>{
+    const dir=w.cardinal?`<span class="dirbadge">${arrowSvg(w.heading,22)} ${w.cardinal} · ${Math.round(w.heading)}°</span>`:'<span>direction —</span>';
+    const coords=(w.lat!=null)?`<span>${w.lat.toFixed(5)}, ${w.lng.toFixed(5)}</span>`:'<span>location —</span>';
+    const audio=w.audio?`<audio controls src="${w.audio}" style="width:100%;margin-top:10px"></audio>`:'';
+    const sky=(w.lat!=null&&w.heading!=null)?SKY.skyFor(w.lat,w.lng,w.ts,w.heading):null;
+    const skyHtml=sky?`<div data-act="sky" data-id="${w.id}" title="Tap to enlarge" style="display:flex;gap:12px;align-items:center;margin-top:10px;cursor:pointer">${skyThumbSVG(sky,118)}<div style="font-style:italic;color:var(--gold-soft);font-size:.92rem;line-height:1.45">✦ ${sky.label}<div style="color:var(--muted);font-style:normal;font-size:.72rem;margin-top:4px">tap chart to enlarge ▸</div></div></div>`:'';
+    return `<div class="card ${w.received?'received':''}" data-id="${w.id}">
+      <div class="when"><span class="ago">${relTime(w.ts)}</span> &nbsp;·&nbsp; ${fmtDate(w.ts)}</div>
+      <div class="wish">${w.text?escapeHtml(w.text):'<em style="color:var(--muted)">(voice only)</em>'}</div>
+      <div class="meta">${dir} ${coords}</div>
+      ${skyHtml}
+      ${audio}
+      <div class="actions">
+        ${w.lat!=null?`<button class="mini gold" data-act="map" data-id="${w.id}">View on map</button>`:''}
+        <button class="mini" data-act="recv" data-id="${w.id}">${w.received?'↺ Unmark':'✦ Received'}</button>
+        <button class="mini del" data-act="del" data-id="${w.id}">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+$('#list').addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b)return;
+  const id=b.dataset.id, act=b.dataset.act;
+  let arr=Store.read();
+  if(act==='del'){ if(confirm('Release this wish forever?')){arr=arr.filter(w=>w.id!==id);Store.write(arr);renderList();refreshMap();} }
+  else if(act==='recv'){ arr=arr.map(w=>w.id===id?{...w,received:!w.received}:w);Store.write(arr);renderList(); toast('Marked'); }
+  else if(act==='map'){ const w=arr.find(w=>w.id===id); if(w){switchTab('map');setTimeout(()=>{focusWish(w)},350);} }
+  else if(act==='sky'){ const w=arr.find(w=>w.id===id); if(w)openSkyChart(w); }
+});
+
+/* ---------- backup / restore ---------- */
+$('#exportBtn').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(Store.read(),null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=u;a.download='prayer-gps-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(u),1000);toast('Backup downloaded');
+});
+$('#importBtn').addEventListener('click',()=>$('#importFile').click());
+$('#importFile').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;const fr=new FileReader();
+  fr.onload=()=>{try{const inc=JSON.parse(fr.result);if(!Array.isArray(inc))throw 0;
+    const cur=Store.read();const ids=new Set(cur.map(w=>w.id));
+    const merged=cur.concat(inc.filter(w=>!ids.has(w.id)));Store.write(merged);renderList();refreshMap();toast('Restored '+inc.length+' wishes');
+  }catch(err){toast('Could not read that file')}};
+  fr.readAsText(f);
+});
+
+/* ---------- map ---------- */
+let map=null,layer=null;
+function initMap(){
+  if(map)return;
+  map=L.map('map',{zoomControl:true,attributionControl:false}).setView([39.5,-98.35],4);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    maxZoom:19, subdomains:'abcd'
+  }).addTo(map);
+  layer=L.layerGroup().addTo(map);
+  refreshMap();
+}
+function wishMarker(w){
+  const html=`<div class="facing-arrow">${arrowSvg(w.heading,30, w.received?'#7fd6a2':'#e8b65a')}</div>`;
+  const icon=L.divIcon({html,className:'',iconSize:[30,30],iconAnchor:[15,15]});
+  const m=L.marker([w.lat,w.lng],{icon});
+  const dir=w.cardinal?`${w.cardinal} · ${Math.round(w.heading)}°`:'—';
+  const sky=(w.lat!=null&&w.heading!=null)?SKY.skyFor(w.lat,w.lng,w.ts,w.heading):null;
+  m.bindPopup(`<div class="popwish">${w.text?escapeHtml(w.text):'(voice only)'}</div>
+    ${sky?`<div style="text-align:center;margin:6px 0">${skyThumbSVG(sky,104)}</div>`:''}
+    <div class="popmeta">${fmtDate(w.ts)}<br>Facing ${dir}${sky?('<br>✦ '+sky.label):''}<br>${w.lat.toFixed(5)}, ${w.lng.toFixed(5)}${w.received?'<br>✦ received':''}</div>`);
+  // facing line ~70m
+  if(w.heading!=null){
+    const d=70,R=6378137,th=w.heading*Math.PI/180;
+    const dLat=(d*Math.cos(th))/R*180/Math.PI;
+    const dLng=(d*Math.sin(th))/(R*Math.cos(w.lat*Math.PI/180))*180/Math.PI;
+    L.polyline([[w.lat,w.lng],[w.lat+dLat,w.lng+dLng]],{color:w.received?'#7fd6a2':'#e8b65a',weight:2,opacity:.7,dashArray:'2 5'}).addTo(layer);
+  }
+  return m;
+}
+function refreshMap(){
+  if(!map||!layer)return;
+  layer.clearLayers();
+  const pts=Store.read().filter(w=>w.lat!=null);
+  pts.forEach(w=>wishMarker(w).addTo(layer));
+}
+function fitAll(){
+  const pts=Store.read().filter(w=>w.lat!=null);
+  if(pts.length){map.fitBounds(L.latLngBounds(pts.map(w=>[w.lat,w.lng])).pad(.4));}
+  else toast('No pinned locations yet');
+}
+function focusWish(w){
+  if(!map)initMap();
+  map.setView([w.lat,w.lng],16);
+  layer.eachLayer(l=>{if(l.getLatLng&&Math.abs(l.getLatLng().lat-w.lat)<1e-6&&Math.abs(l.getLatLng().lng-w.lng)<1e-6&&l.getPopup)l.openPopup();});
+}
+$('#fitBtn').addEventListener('click',()=>{initMap();fitAll()});
+$('#locateBtn').addEventListener('click',()=>{
+  initMap();
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{map.setView([p.coords.latitude,p.coords.longitude],15)},()=>toast('Location unavailable'),{enableHighAccuracy:true});
+});
+
+/* ---------- tabs ---------- */
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  $('#speak').classList.toggle('active',name==='speak');
+  $('#saved').classList.toggle('active',name==='saved');
+  $('#map-panel').classList.toggle('active',name==='map');
+  if(name==='saved')renderList();
+  if(name==='map'){initMap();setTimeout(()=>{map.invalidateSize();if(!map._fitted){fitAll();map._fitted=true;}},120);}
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
+
+/* ---------- init ---------- */
+renderList();
+</script>
+</body>
+</html>
